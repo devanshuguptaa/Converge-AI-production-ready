@@ -5,7 +5,6 @@ This module handles communication with the WhatsApp Evolution API gateway,
 including instance creation, webhook setup, QR code generation, and sending messages.
 """
 
-import os
 from pathlib import Path
 import httpx
 from src.config import config
@@ -34,10 +33,7 @@ class WhatsAppClient:
     @property
     def headers(self) -> dict[str, str]:
         """Get standard authorization headers for the gateway."""
-        return {
-            "apikey": self.api_key,
-            "Content-Type": "application/json"
-        }
+        return {"apikey": self.api_key, "Content-Type": "application/json"}
 
     async def close(self):
         """Close the underlying HTTP client."""
@@ -53,12 +49,16 @@ class WhatsAppClient:
             return
 
         try:
-            logger.info(f"Initializing WhatsApp integration with gateway: {self.api_url}")
-            
+            logger.info(
+                f"Initializing WhatsApp integration with gateway: {self.api_url}"
+            )
+
             # 1. Check if the instance exists
             exists = await self.check_instance_exists()
             if not exists:
-                logger.info(f"Instance '{self.instance_name}' does not exist. Creating...")
+                logger.info(
+                    f"Instance '{self.instance_name}' does not exist. Creating..."
+                )
                 await self.create_instance()
             else:
                 logger.info(f"Instance '{self.instance_name}' already exists.")
@@ -84,7 +84,10 @@ class WhatsAppClient:
                 # Evolution API returns instances as a list of dicts
                 if isinstance(instances, list):
                     for inst in instances:
-                        if inst.get("name") == self.instance_name or inst.get("instanceName") == self.instance_name:
+                        if (
+                            inst.get("name") == self.instance_name
+                            or inst.get("instanceName") == self.instance_name
+                        ):
                             return True
             return False
         except Exception as e:
@@ -104,13 +107,15 @@ class WhatsAppClient:
                 "groups_ignore": False,
                 "always_online": True,
                 "read_messages": True,
-                "read_status": True
-            }
+                "read_status": True,
+            },
         }
         try:
             response = await self.client.post(url, headers=self.headers, json=payload)
             if response.status_code not in (200, 201):
-                logger.error(f"Failed to create instance. Status: {response.status_code}, Body: {response.text}")
+                logger.error(
+                    f"Failed to create instance. Status: {response.status_code}, Body: {response.text}"
+                )
                 response.raise_for_status()
             logger.info(f"Successfully created WhatsApp instance: {self.instance_name}")
         except Exception as e:
@@ -125,17 +130,16 @@ class WhatsAppClient:
                 "enabled": True,
                 "url": webhook_url,
                 "byEvents": True,
-                "events": [
-                    "MESSAGES_UPSERT",
-                    "SEND_MESSAGE"
-                ]
+                "events": ["MESSAGES_UPSERT", "SEND_MESSAGE"],
             }
         }
         # Note: Evolution API expects boolean values in lowercase JSON. Python's True maps to true.
         try:
             response = await self.client.post(url, headers=self.headers, json=payload)
             if response.status_code != 200:
-                logger.error(f"Failed to set webhook. Status: {response.status_code}, Body: {response.text}")
+                logger.error(
+                    f"Failed to set webhook. Status: {response.status_code}, Body: {response.text}"
+                )
                 response.raise_for_status()
             logger.info("WhatsApp webhook set successfully.")
         except Exception as e:
@@ -173,7 +177,9 @@ class WhatsAppClient:
                 )
                 self._write_qr_html(qr_base64)
             else:
-                logger.warning(f"WhatsApp connection state: {status}. QR code not yet available. Response: {data}")
+                logger.warning(
+                    f"WhatsApp connection state: {status}. QR code not yet available. Response: {data}"
+                )
 
         except Exception as e:
             logger.error(f"Error checking connection status: {e}")
@@ -263,14 +269,8 @@ class WhatsAppClient:
         url = f"{self.api_url}/message/sendText/{self.instance_name}"
         payload = {
             "number": clean_number,
-            "options": {
-                "delay": 1000,
-                "presence": "composing",
-                "linkPreview": True
-            },
-            "textMessage": {
-                "text": text
-            }
+            "options": {"delay": 1000, "presence": "composing", "linkPreview": True},
+            "textMessage": {"text": text},
         }
 
         try:
@@ -279,7 +279,9 @@ class WhatsAppClient:
                 logger.info(f"WhatsApp message sent to {clean_number}")
                 return True
             else:
-                logger.error(f"Failed to send WhatsApp message. Status: {response.status_code}, Body: {response.text}")
+                logger.error(
+                    f"Failed to send WhatsApp message. Status: {response.status_code}, Body: {response.text}"
+                )
                 return False
         except Exception as e:
             logger.error(f"Error sending WhatsApp message: {e}")

@@ -14,10 +14,7 @@ from src.whatsapp.client import whatsapp_client
 
 logger = get_logger(__name__)
 
-router = APIRouter(
-    prefix="/webhooks/whatsapp",
-    tags=["whatsapp"]
-)
+router = APIRouter(prefix="/webhooks/whatsapp", tags=["whatsapp"])
 
 
 def extract_message_text(message_data: dict) -> str | None:
@@ -57,8 +54,7 @@ async def receive_whatsapp_event(request: Request, apikey: str | None = Header(N
         if apikey != expected_secret:
             logger.warning("Unauthorized webhook request received.")
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid webhook token"
+                status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid webhook token"
             )
 
     try:
@@ -66,8 +62,7 @@ async def receive_whatsapp_event(request: Request, apikey: str | None = Header(N
     except Exception:
         logger.error("Failed to parse JSON body of WhatsApp webhook.")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid JSON payload"
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid JSON payload"
         )
 
     event_type = payload.get("event")
@@ -100,16 +95,15 @@ async def receive_whatsapp_event(request: Request, apikey: str | None = Header(N
     # Extract user pushname or use JID username
     push_name = data.get("pushName") or remote_jid.split("@")[0]
 
-    logger.info(f"Received WhatsApp message from '{push_name}' ({remote_jid}): {text[:50]}...")
+    logger.info(
+        f"Received WhatsApp message from '{push_name}' ({remote_jid}): {text[:50]}..."
+    )
 
     # Process async to avoid blocking the webhook response (fast response is required by APIs)
     import asyncio
+
     asyncio.create_task(
-        process_whatsapp_message(
-            remote_jid=remote_jid,
-            user_name=push_name,
-            text=text
-        )
+        process_whatsapp_message(remote_jid=remote_jid, user_name=push_name, text=text)
     )
 
     return {"status": "received"}
@@ -123,9 +117,7 @@ async def process_whatsapp_message(remote_jid: str, user_name: str, text: str):
         # 1. Create or get database session for WhatsApp channel
         # We represent user_id as remote_jid, and channel_id as "whatsapp"
         session_id = get_or_create_session(
-            user_id=remote_jid,
-            channel_id="whatsapp",
-            thread_ts=None
+            user_id=remote_jid, channel_id="whatsapp", thread_ts=None
         )
 
         # 2. Persist user message in DB
@@ -136,14 +128,15 @@ async def process_whatsapp_message(remote_jid: str, user_name: str, text: str):
 
         # 4. Call AI Agent
         logger.info(f"Routing WhatsApp message to AI agent (Session: {session_id})")
-        
+
         from src.agent.core import process_message
+
         response = await process_message(
             user_message=text,
             session_id=session_id,
             user_id=remote_jid,
             channel_id="whatsapp",
-            history=history
+            history=history,
         )
 
         # 5. Fallback check for empty response
@@ -152,11 +145,13 @@ async def process_whatsapp_message(remote_jid: str, user_name: str, text: str):
 
         # 6. Send message back via WhatsApp Web client
         success = await whatsapp_client.send_message(number=remote_jid, text=response)
-        
+
         if success:
             # 7. Persist assistant response in DB
             add_message(session_id, "assistant", response)
-            logger.info(f"WhatsApp response successfully sent & saved to session {session_id}")
+            logger.info(
+                f"WhatsApp response successfully sent & saved to session {session_id}"
+            )
         else:
             logger.error(f"Failed to send response to WhatsApp number {remote_jid}")
 
@@ -166,7 +161,7 @@ async def process_whatsapp_message(remote_jid: str, user_name: str, text: str):
         try:
             await whatsapp_client.send_message(
                 number=remote_jid,
-                text="⚠️ Sorry, I encountered an internal error processing your message. Please try again."
+                text="⚠️ Sorry, I encountered an internal error processing your message. Please try again.",
             )
         except Exception:
             pass
@@ -179,15 +174,16 @@ async def get_qr_page():
     """
     if not config.whatsapp.enabled:
         return "<h3>WhatsApp integration is disabled in configuration.</h3>"
-    
+
     # Check if the QR file exists, otherwise trigger a check
     from src.whatsapp.client import QR_HTML_PATH
+
     if not QR_HTML_PATH.exists():
         await whatsapp_client.check_connection_and_qr()
-        
+
     if QR_HTML_PATH.exists():
         return QR_HTML_PATH.read_text(encoding="utf-8")
-        
+
     return """
     <!DOCTYPE html>
     <html>
