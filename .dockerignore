@@ -1,0 +1,45 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv
+venv/
+ENV/
+
+# Configuration
+# Keep .env in build context if you want to copy it, but usually handled by docker-compose env_file
+# We will copy it in Dockerfile but exclude local overrides if needed.
+# For safety, let's keep .env but exclude others
+.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# Logs and Data (mount these instead)
+logs/
+# data/ # Keep data if you want initial data, otherwise exclude

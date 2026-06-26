@@ -1,0 +1,35 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+
+# Sensitive data and credentials
+credentials/
+token_gmail.pickle
+token_calendar.pickle
+data/
+*.pem
+*.key
+*.env.*
+!.env.example
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ChromaDB
+chroma/
+chroma_db/
+
+# OS Junk
+.DS_Store
+Thumbs.db

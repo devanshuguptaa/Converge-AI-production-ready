@@ -1,0 +1,153 @@
+##############################################################################
+#  Converge AI – CI / CD Pipeline
+#
+#  Branching Strategy (Git Flow):
+#  ─────────────────────────────
+#    main      – Production. Protected. No direct pushes ever.
+#    develop   – Integration. All feature PRs merge here first.
+#    feature/* – Individual developer branches, cut from `develop`.
+#    hotfix/*  – Urgent production patches, cut from `main`.
+#
+#  Pipeline Triggers:
+#  ──────────────────
+#    1. PR opened/updated → `develop`   ─► CI only  (lint + tests)
+#    2. PR opened/updated → `main`      ─► CI only  (final gate before production)
+#    3. Push/merge        → `main`      ─► CD only  (deploy to AWS EC2 production)
+#
+#  Required GitHub Repository Settings  (Settings → Branches → Branch Rules):
+#    Branch name pattern : main
+#      ✅ Require a pull request before merging
+#      ✅ Require approvals: 1
+#      ✅ Require status checks to pass (select: "CI – Lint & Test")
+#      ✅ Do not allow bypassing the above settings
+#
+#    Branch name pattern : develop
+#      ✅ Require a pull request before merging
+#      ✅ Require status checks to pass (select: "CI – Lint & Test")
+##############################################################################
+
+name: Converge AI – CI/CD
+
+on:
+  # CI: runs on every PR targeting develop or main
+  pull_request:
+    branches:
+      - develop
+      - main
+
+  # CD: runs when a PR is merged into main (i.e. the release commit lands)
+  push:
+    branches:
+      - main
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 1 – CI: Lint, Formatting & Syntax Checks
+  # Runs on every PR to `develop` or `main`. Must pass before merge is allowed.
+  # ────────────────────────────────────────────────────────────────────────────
+  ci:
+    name: "CI – Lint & Test"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install ruff
+
+      - name: Ruff – lint check
+        run: |
+          echo "Running Ruff linter on src/ ..."
+          ruff check src/
+
+      - name: Ruff – format check (no auto-fix in CI)
+        run: |
+          echo "Checking code formatting ..."
+          ruff format --check src/
+
+      - name: Verify module imports (smoke test)
+        # Quick sanity-check that nothing is broken at import time.
+        # Requires only an empty .env file so pydantic-settings won't fail.
+        run: |
+          cp .env.example .env
+          python -c "
+          import sys
+          try:
+              from src.config import AppConfig
+              print('✅ Config imports OK')
+          except Exception as e:
+              print(f'❌ Import error: {e}')
+              sys.exit(1)
+          "
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # JOB 2 – CD: Deploy to AWS EC2 Production
+  # Runs ONLY when code is merged (pushed) into `main`.
+  # Depends on `ci` to ensure linting passed even on direct hotfix merges.
+  # ────────────────────────────────────────────────────────────────────────────
+  cd:
+    name: "CD – Deploy to Production (AWS EC2)"
+    needs: ci
+    # Only deploy when a commit actually lands on main (i.e. after PR merge).
+    # This does NOT run on PRs – PRs only trigger the `ci` job above.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+
+    environment:
+      name: production
+      url: https://${{ secrets.DUCKDNS_DOMAIN }}.duckdns.org
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Notify deployment start
+        run: |
+          echo "🚀 Starting production deployment to ${{ secrets.EC2_HOST }}"
+          echo "Triggered by: ${{ github.actor }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Message: ${{ github.event.head_commit.message }}"
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: 22
+          script_stop: true   # Abort entire script if any command exits non-zero
+          script: |
+            set -euo pipefail  # Strict bash: exit on error, unset var, pipe fail
+
+            echo "=== [1/5] Navigating to application directory ==="
+            cd ~/Converge-AI
+
+            echo "=== [2/5] Pulling latest code from main ==="
+            git fetch origin main
+            git reset --hard origin/main   # Hard reset ensures clean state
+
+            echo "=== [3/5] Rebuilding Docker images ==="
+            docker compose build --no-cache
+
+            echo "=== [4/5] Restarting services with zero-downtime strategy ==="
+            # Bring up new containers before tearing down old ones where possible
+            docker compose up -d --remove-orphans
+
+            echo "=== [5/5] Cleaning up stale images (saves disk on Free Tier) ==="
+            docker image prune -f
+
+            echo ""
+            echo "✅ Deployment complete!"
+            echo "   Commit : ${{ github.sha }}"
+            echo "   Actor  : ${{ github.actor }}"
+            echo "   Time   : $(date -u +%Y-%m-%dT%H:%M:%SZ)"

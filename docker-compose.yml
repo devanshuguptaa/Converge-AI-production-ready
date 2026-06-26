@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  slack-bot:
+    build: .
+    container_name: slack-ai-assistant
+    restart: unless-stopped
+    # Expose internally, do not publish ports publicly to force traffic through Nginx
+    expose:
+      - "8000"
+    env_file:
+      - .env
+    volumes:
+      # Mount data directory for persistence
+      - ./data:/app/data
+      # Mount credentials for Gmail/Calendar tokens
+      - ./credentials:/app/credentials
+      # Mount source code for development (optional - remove for production)
+      - ./src:/app/src
+    environment:
+      - PORT=8000
+    depends_on:
+      - whatsapp-gateway
+
+  whatsapp-gateway:
+    image: atendai/evolution-api:latest
+    container_name: whatsapp-gateway
+    restart: unless-stopped
+    expose:
+      - "8080"
+    env_file:
+      - .env
+    volumes:
+      - ./data/evolution/instances:/evolution/instances
+      - ./data/evolution/store:/evolution/store
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-reverse-proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - slack-bot

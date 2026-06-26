@@ -1,0 +1,19 @@
+# Tell Git to normalize line endings
+# - On Windows checkout: CRLF  (what your editor expects)
+# - On commit: LF              (what Linux servers & CI need)
+* text=auto eol=lf
+
+# These files must always be LF (shell scripts break with CRLF)
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+Dockerfile text eol=lf
+nginx/nginx.conf text eol=lf
+
+# These files are binary — never touch their line endings
+*.png binary
+*.jpg binary
+*.ico binary
+*.pem binary
+*.key binary
+*.pickle binary
