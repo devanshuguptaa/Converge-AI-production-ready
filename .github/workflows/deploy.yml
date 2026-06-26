@@ -110,7 +110,6 @@ jobs:
 
     environment:
       name: production
-      url: https://${{ secrets.DUCKDNS_DOMAIN }}.duckdns.org
 
     steps:
       - name: Checkout code
