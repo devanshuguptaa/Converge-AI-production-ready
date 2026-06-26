@@ -77,13 +77,18 @@ jobs:
 
       - name: Verify module imports (smoke test)
         # Quick sanity-check that nothing is broken at import time.
-        # Requires only an empty .env file so pydantic-settings won't fail.
+        # Supplies dummy credentials so pydantic-settings validation passes.
         run: |
           cp .env.example .env
+          echo "SLACK_BOT_TOKEN=xoxb-dummy-token" >> .env
+          echo "SLACK_APP_TOKEN=xapp-dummy-token" >> .env
+          echo "SLACK_SIGNING_SECRET=dummy-secret" >> .env
+          echo "GEMINI_API_KEY=dummy-key" >> .env
+          echo "MEM0_API_KEY=dummy-key" >> .env
           python -c "
           import sys
           try:
-              from src.config import AppConfig
+              from src.config import config
               print('✅ Config imports OK')
           except Exception as e:
               print(f'❌ Import error: {e}')
