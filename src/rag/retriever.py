@@ -8,7 +8,7 @@ The retriever uses the ChromaDB vector store to find relevant messages
 based on semantic similarity to the query.
 """
 
-from typing import List, Optional
+from typing import Optional
 from langchain.tools import tool
 
 from src.utils.logger import get_logger

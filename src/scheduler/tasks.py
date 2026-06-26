@@ -12,7 +12,6 @@ Features:
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.date import DateTrigger
 from apscheduler.triggers.cron import CronTrigger
@@ -20,7 +19,6 @@ from langchain.tools import tool
 
 from src.utils.logger import get_logger
 from src.database import get_db_session, ScheduledTask
-from src.config import config
 
 logger = get_logger(__name__)
 
@@ -104,7 +102,7 @@ def initialize_scheduler() -> AsyncIOScheduler:
     try:
         with get_db_session() as db:
             active_tasks = db.query(ScheduledTask).filter(
-                ScheduledTask.is_active == True
+                ScheduledTask.is_active
             ).all()
             
             for task in active_tasks:

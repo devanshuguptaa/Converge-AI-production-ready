@@ -192,7 +192,7 @@ def get_or_create_session(
         # Try to find existing active session
         query = db.query(ConversationSession).filter(
             ConversationSession.user_id == user_id,
-            ConversationSession.is_active == True
+            ConversationSession.is_active
         )
         
         if channel_id:

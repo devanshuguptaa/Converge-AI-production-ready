@@ -32,5 +32,5 @@ class CalendarReader:
                 orderBy='startTime').execute()
             events = events_result.get('items', [])
             return events
-        except Exception as e:
+        except Exception:
             return []

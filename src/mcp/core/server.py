@@ -1,7 +1,6 @@
-import os
 import logging
 from typing import Dict, Any, List
-from .permissions import PermissionManager, MCPScope
+from .permissions import PermissionManager
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')

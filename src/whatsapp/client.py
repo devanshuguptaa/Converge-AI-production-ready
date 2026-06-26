@@ -5,7 +5,6 @@ This module handles communication with the WhatsApp Evolution API gateway,
 including instance creation, webhook setup, QR code generation, and sending messages.
 """
 
-import os
 from pathlib import Path
 import httpx
 from src.config import config

@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import List, Set
+from typing import List
 
 class MCPScope(Enum):
     # Gmail Scopes

@@ -23,7 +23,6 @@ Architecture:
     Tools: RAG + Memory + MCP + Slack Actions
 """
 
-import asyncio
 import signal
 from contextlib import asynccontextmanager
 
@@ -33,6 +32,7 @@ from fastapi.responses import JSONResponse
 from src.config import config, validate_config
 from src.database import initialize_database
 from src.utils.logger import get_logger
+from src.whatsapp.webhook import router as whatsapp_router
 
 logger = get_logger(__name__)
 
@@ -232,7 +232,6 @@ app = FastAPI(
 )
 
 # Include WhatsApp webhook router
-from src.whatsapp.webhook import router as whatsapp_router
 app.include_router(whatsapp_router)
 
 

@@ -5,14 +5,12 @@ This module provides LangChain-compatible tools for Gmail and Calendar integrati
 """
 
 from langchain_core.tools import StructuredTool
-from typing import List
 import os
 
 # Import the Email MCP modules
 from src.mcp.tools.email_tools import EmailTools
 from src.mcp.tools.calendar_tools import CalendarTools
 from src.mcp.core.permissions import PermissionManager, MCPScope
-from src.config import config
 
 
 # Initialize Email & Calendar tools

@@ -3,10 +3,9 @@ from .service import GmailService
 import base64
 from email.mime.text import MIMEText
 import logging
+import html
 
 logger = logging.getLogger(__name__)
-
-import html
 
 class GmailSender:
     def __init__(self, gmail_service: GmailService):

@@ -402,7 +402,7 @@ if __name__ == "__main__":
     import asyncio
     
     async def test():
-        app = await initialize_slack_app()
+        await initialize_slack_app()
         logger.info("Slack app test successful!")
         await asyncio.sleep(5)
     

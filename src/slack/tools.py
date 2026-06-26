@@ -13,7 +13,6 @@ from typing import Optional
 from langchain.tools import tool
 
 from src.utils.logger import get_logger
-from src.config import config
 
 logger = get_logger(__name__)
 
