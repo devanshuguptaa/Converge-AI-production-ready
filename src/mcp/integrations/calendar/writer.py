@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class CalendarWriter:
     def __init__(self, calendar_service: CalendarService):
-        self.service = calendar_service.get_service()
+        self.calendar_service = calendar_service
 
     def create_event(
         self, summary: str, start_time: str, end_time: str, description: str = None
@@ -28,10 +28,9 @@ class CalendarWriter:
             },
         }
 
+        service = self.calendar_service.get_service()
         try:
-            event = (
-                self.service.events().insert(calendarId="primary", body=event).execute()
-            )
+            event = service.events().insert(calendarId="primary", body=event).execute()
             logger.info(f"Event created: {event.get('htmlLink')}")
             return event
         except Exception as e:

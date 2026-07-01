@@ -27,25 +27,6 @@ class GoogleAuthRequiredError(Exception):
         super().__init__(f"Authentication required for {service_name}: {login_url}")
 
 
-class GoogleServiceProxy:
-    """
-    A lazy proxy that forwards all attribute calls to the service instance
-    dynamically resolved for the current request context.
-    """
-
-    def __init__(self, service_instance_getter):
-        object.__setattr__(self, "_getter", service_instance_getter)
-
-    def __getattr__(self, name):
-        return getattr(self._getter(), name)
-
-    def __setattr__(self, name, value):
-        return setattr(self._getter(), name, value)
-
-    def __delattr__(self, name):
-        return delattr(self._getter(), name)
-
-
 class GmailService:
     def __init__(
         self,
@@ -103,13 +84,10 @@ class GmailService:
 
         return build("gmail", "v1", credentials=creds)
 
-    def get_service(self):
-        def getter():
-            cache = _gmail_service_cache.get()
-            if cache is not None:
-                return cache
-            service_instance = self.authenticate()
-            _gmail_service_cache.set(service_instance)
-            return service_instance
-
-        return GoogleServiceProxy(getter)
+    def get_service(self) -> Any:
+        cache = _gmail_service_cache.get()
+        if cache is not None:
+            return cache
+        service_instance = self.authenticate()
+        _gmail_service_cache.set(service_instance)
+        return service_instance

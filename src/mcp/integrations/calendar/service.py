@@ -7,10 +7,7 @@ from googleapiclient.discovery import build
 import logging
 from src.utils.context import current_user_id, current_channel_id
 from src.config import config
-from src.mcp.integrations.gmail.service import (
-    GoogleAuthRequiredError,
-    GoogleServiceProxy,
-)
+from src.mcp.integrations.gmail.service import GoogleAuthRequiredError
 
 logger = logging.getLogger(__name__)
 
@@ -80,13 +77,10 @@ class CalendarService:
 
         return build("calendar", "v3", credentials=creds)
 
-    def get_service(self):
-        def getter():
-            cache = _calendar_service_cache.get()
-            if cache is not None:
-                return cache
-            service_instance = self.authenticate()
-            _calendar_service_cache.set(service_instance)
-            return service_instance
-
-        return GoogleServiceProxy(getter)
+    def get_service(self) -> Any:
+        cache = _calendar_service_cache.get()
+        if cache is not None:
+            return cache
+        service_instance = self.authenticate()
+        _calendar_service_cache.set(service_instance)
+        return service_instance

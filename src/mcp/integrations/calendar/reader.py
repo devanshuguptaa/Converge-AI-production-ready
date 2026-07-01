@@ -8,11 +8,12 @@ logger = logging.getLogger(__name__)
 
 class CalendarReader:
     def __init__(self, calendar_service: CalendarService):
-        self.service = calendar_service.get_service()
+        self.calendar_service = calendar_service
 
     def list_events(
         self, max_results: int = 10, start_time: str = None, end_time: str = None
     ) -> List[Dict[str, Any]]:
+        service = self.calendar_service.get_service()
         try:
             # Default to now if no start_time provided
             if not start_time:
@@ -34,7 +35,7 @@ class CalendarReader:
                 end_time = (start_dt + datetime.timedelta(days=7)).isoformat() + "Z"
 
             events_result = (
-                self.service.events()
+                service.events()
                 .list(
                     calendarId="primary",
                     timeMin=start_time,

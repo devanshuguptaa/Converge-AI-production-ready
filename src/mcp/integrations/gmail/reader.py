@@ -8,14 +8,15 @@ logger = logging.getLogger(__name__)
 
 class GmailReader:
     def __init__(self, gmail_service: GmailService):
-        self.service = gmail_service.get_service()
+        self.gmail_service = gmail_service
 
     def list_messages(
         self, query: str = "", max_results: int = 10
     ) -> List[Dict[str, Any]]:
+        service = self.gmail_service.get_service()
         try:
             results = (
-                self.service.users()
+                service.users()
                 .messages()
                 .list(userId="me", q=query, maxResults=max_results)
                 .execute()
@@ -43,12 +44,10 @@ class GmailReader:
         return results
 
     def get_message_details(self, message_id: str) -> Dict[str, Any]:
+        service = self.gmail_service.get_service()
         try:
             message = (
-                self.service.users()
-                .messages()
-                .get(userId="me", id=message_id)
-                .execute()
+                service.users().messages().get(userId="me", id=message_id).execute()
             )
             payload = message.get("payload", {})
             headers = payload.get("headers", [])
@@ -79,10 +78,9 @@ class GmailReader:
             return {}
 
     def get_thread(self, thread_id: str) -> Dict[str, Any]:
+        service = self.gmail_service.get_service()
         try:
-            thread = (
-                self.service.users().threads().get(userId="me", id=thread_id).execute()
-            )
+            thread = service.users().threads().get(userId="me", id=thread_id).execute()
             messages = thread.get("messages", [])
 
             parsed_messages = []
