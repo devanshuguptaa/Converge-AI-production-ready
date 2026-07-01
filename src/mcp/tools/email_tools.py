@@ -37,7 +37,7 @@ class EmailTools:
                 try:
                     return original_run(*args, **kwargs)
                 except GoogleAuthRequiredError as e:
-                    return f"🔒 Google authentication is required to use this tool. Please sign in here: {e.login_url}\nAfter connecting, please try your command again."
+                    return f"🔒 Google authentication is required to use this tool. Please [Sign In Here]({e.login_url}) to authorize access, then retry your command."
 
             return wrapped_run
 
