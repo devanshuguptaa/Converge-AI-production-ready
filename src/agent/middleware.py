@@ -215,6 +215,18 @@ class SlackContextMiddleware:
 3. Keep responses concise and readable on mobile screens. Avoid excessively long blocks of text.
 4. You are talking to this user directly on WhatsApp. Do not refer to Slack channels or mention Slack-specific tools.
 """
+            elif channel_id == "telegram":
+                context = f"""**Current Context:**
+- Platform: Telegram
+- User ID/Chat ID: {user_id}
+- Session ID: {session_id}
+
+**Formatting Guidelines for Telegram:**
+1. Telegram supports basic Markdown formatting: *bold*, _italics_, `monospace`.
+2. Telegram supports markdown links (e.g., [Google](https://google.com)).
+3. Keep responses concise and readable on mobile screens. Avoid excessively long blocks of text.
+4. You are talking to this user directly on Telegram. Do not refer to Slack channels or mention Slack-specific tools.
+"""
             else:
                 context = f"""**Current Context:**
 - Platform: Slack

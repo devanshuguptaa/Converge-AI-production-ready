@@ -184,6 +184,22 @@ class WhatsAppConfig(BaseSettings):
     )
 
 
+class TelegramConfig(BaseSettings):
+    """
+    Telegram Bot configuration.
+    """
+
+    enabled: bool = Field(default=False, alias="TELEGRAM_ENABLED")
+    bot_token: str = Field(default="", alias="TELEGRAM_BOT_TOKEN")
+
+    model_config = SettingsConfigDict(
+        env_file=str(PROJECT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
 class AppConfig(BaseSettings):
     """
     Main application configuration.
@@ -197,6 +213,7 @@ class AppConfig(BaseSettings):
         rag: RAG configuration
         mcp: MCP configuration
         whatsapp: WhatsApp configuration
+        telegram: Telegram configuration
         database_path: Path to SQLite database file
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR)
         environment: Application environment (development, production)
@@ -214,6 +231,7 @@ class AppConfig(BaseSettings):
     rag: RAGConfig = Field(default_factory=RAGConfig)
     mcp: MCPConfig = Field(default_factory=MCPConfig)
     whatsapp: WhatsAppConfig = Field(default_factory=WhatsAppConfig)
+    telegram: TelegramConfig = Field(default_factory=TelegramConfig)
 
     llm_provider: str | None = Field(default=None, alias="LLM_PROVIDER")
 
@@ -328,6 +346,13 @@ def validate_config() -> tuple[bool, list[str]]:
         if not config.whatsapp.api_url:
             errors.append("WHATSAPP_API_URL is not configured")
 
+    # Check Telegram configuration (if enabled)
+    if config.telegram.enabled:
+        if not config.telegram.bot_token:
+            errors.append(
+                "TELEGRAM_BOT_TOKEN is not configured (or disable Telegram with TELEGRAM_ENABLED=false)"
+            )
+
     return (len(errors) == 0, errors)
 
 
@@ -344,6 +369,7 @@ if __name__ == "__main__":
     print(f"RAG Enabled: {config.rag.enabled}")
     print(f"Memory Enabled: {config.memory.enabled}")
     print(f"MCP Enabled: {config.mcp.enabled}")
+    print(f"Telegram Enabled: {config.telegram.enabled}")
 
     # Validate configuration
     is_valid, errors = validate_config()

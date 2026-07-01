@@ -159,6 +159,18 @@ async def lifespan(app: FastAPI):
             logger.error(f"Failed to initialize WhatsApp client: {e}", exc_info=True)
             logger.warning("Continuing without WhatsApp")
 
+    # Initialize Telegram Bot
+    if config.telegram.enabled:
+        logger.info("Initializing Telegram bot...")
+        try:
+            from src.telegram.client import telegram_bot
+
+            await telegram_bot.initialize()
+            logger.info("✅ Telegram bot initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize Telegram bot: {e}", exc_info=True)
+            logger.warning("Continuing without Telegram")
+
     # Start background indexer (if RAG enabled)
     if config.rag.enabled:
         logger.info("Starting background message indexer...")
@@ -190,6 +202,7 @@ async def lifespan(app: FastAPI):
     logger.info(f"RAG Enabled: {config.rag.enabled}")
     logger.info(f"Memory Enabled: {config.memory.enabled}")
     logger.info(f"MCP Enabled: {config.mcp.enabled}")
+    logger.info(f"Telegram Enabled: {config.telegram.enabled}")
     logger.info("=" * 60)
 
     # Application is now running
@@ -230,6 +243,17 @@ async def lifespan(app: FastAPI):
             logger.info("✅ WhatsApp client closed")
         except Exception as e:
             logger.error(f"Error closing WhatsApp client: {e}")
+
+    # Close Telegram bot session
+    if config.telegram.enabled:
+        logger.info("Closing Telegram bot...")
+        try:
+            from src.telegram.client import telegram_bot
+
+            await telegram_bot.close()
+            logger.info("✅ Telegram bot closed")
+        except Exception as e:
+            logger.error(f"Error closing Telegram bot: {e}")
 
     logger.info("✅ Shutdown complete")
 
