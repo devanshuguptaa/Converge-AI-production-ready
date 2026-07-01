@@ -257,6 +257,9 @@ class AppConfig(BaseSettings):
     # FastAPI settings
     host: str = Field(default="0.0.0.0", alias="HOST")
     port: int = Field(default=8000, alias="PORT")
+    redirect_uri_base: str = Field(
+        default="http://localhost:8000", alias="REDIRECT_URI_BASE"
+    )
 
     # DM Policy
     dm_policy: Literal["open", "pairing", "allowlist"] = Field(

@@ -18,10 +18,28 @@ class CalendarTools:
         self.writer = CalendarWriter(self.service)
 
     def get_tools(self) -> Dict[str, Any]:
-        return {
+        tools = {
             "list_calendar_events": self.list_calendar_events_tool(),
             "create_calendar_event": self.create_calendar_event_tool(),
         }
+
+        # Wrap each run function to catch auth exceptions
+        from functools import wraps
+        from ..integrations.gmail.service import GoogleAuthRequiredError
+
+        for tool_name, tool_def in tools.items():
+            original_run = tool_def["run"]
+
+            @wraps(original_run)
+            def wrapped_run(*args, **kwargs):
+                try:
+                    return original_run(*args, **kwargs)
+                except GoogleAuthRequiredError as e:
+                    return f"🔒 Google authentication is required to use this tool. Please sign in here: {e.login_url}\nAfter connecting, please try your command again."
+
+            tool_def["run"] = wrapped_run
+
+        return tools
 
     def list_calendar_events_tool(self):
         def run(start_time: str = None, end_time: str = None):

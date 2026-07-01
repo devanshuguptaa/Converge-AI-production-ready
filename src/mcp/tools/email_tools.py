@@ -18,7 +18,7 @@ class EmailTools:
         self.sender = GmailSender(self.service)
 
     def get_tools(self) -> Dict[str, Any]:
-        return {
+        tools = {
             "list_recent_emails": self.list_recent_emails_tool(),
             "get_email_details": self.get_email_details_tool(),
             "get_multiple_email_details": self.get_multiple_email_details_tool(),
@@ -26,6 +26,24 @@ class EmailTools:
             "create_draft": self.create_draft_tool(),
             "summarize_email_thread": self.summarize_email_thread_tool(),
         }
+
+        # Wrap each run function to catch auth exceptions
+        from functools import wraps
+        from ..integrations.gmail.service import GoogleAuthRequiredError
+
+        for tool_name, tool_def in tools.items():
+            original_run = tool_def["run"]
+
+            @wraps(original_run)
+            def wrapped_run(*args, **kwargs):
+                try:
+                    return original_run(*args, **kwargs)
+                except GoogleAuthRequiredError as e:
+                    return f"🔒 Google authentication is required to use this tool. Please sign in here: {e.login_url}\nAfter connecting, please try your command again."
+
+            tool_def["run"] = wrapped_run
+
+        return tools
 
     def list_recent_emails_tool(self):
         def run(limit: int = 5, query: str = ""):

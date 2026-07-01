@@ -277,6 +277,11 @@ async def process_message(
     if not agent:
         return "Error: Agent not initialized. Please check the logs."
 
+    from src.utils.context import current_user_id, current_channel_id
+
+    token_user = current_user_id.set(user_id)
+    token_channel = current_channel_id.set(channel_id)
+
     try:
         logger.info(f"Processing message for session {session_id}")
 
@@ -392,6 +397,9 @@ async def process_message(
             "I apologize, but I encountered an error processing your message. "
             "Please try again or rephrase your question."
         )
+    finally:
+        current_user_id.reset(token_user)
+        current_channel_id.reset(token_channel)
 
 
 if __name__ == "__main__":

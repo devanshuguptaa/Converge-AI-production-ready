@@ -1,9 +1,12 @@
 import os
 import pickle
-from google_auth_oauthlib.flow import InstalledAppFlow
+import contextvars
+from typing import Any
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 import logging
+from src.utils.context import current_user_id, current_channel_id
+from src.config import config
 
 logger = logging.getLogger(__name__)
 
@@ -13,39 +16,100 @@ SCOPES = [
     "https://www.googleapis.com/auth/gmail.modify",
 ]
 
+# Request-scoped cache for the built Google API services
+_gmail_service_cache = contextvars.ContextVar("gmail_service_cache", default=None)
+
+
+class GoogleAuthRequiredError(Exception):
+    def __init__(self, service_name: str, login_url: str):
+        self.service_name = service_name
+        self.login_url = login_url
+        super().__init__(f"Authentication required for {service_name}: {login_url}")
+
+
+class GoogleServiceProxy:
+    """
+    A lazy proxy that forwards all attribute calls to the service instance
+    dynamically resolved for the current request context.
+    """
+
+    def __init__(self, service_instance_getter):
+        object.__setattr__(self, "_getter", service_instance_getter)
+
+    def __getattr__(self, name):
+        return getattr(self._getter(), name)
+
+    def __setattr__(self, name, value):
+        return setattr(self._getter(), name, value)
+
+    def __delattr__(self, name):
+        return delattr(self._getter(), name)
+
 
 class GmailService:
-    def __init__(self, client_secret_path: str, token_path: str = "token_gmail.pickle"):
+    def __init__(
+        self,
+        client_secret_path: str,
+        token_path: str = "credentials/token_gmail.pickle",
+    ):
         self.client_secret_path = client_secret_path
         self.token_path = token_path
-        self.service = None
-        self.authenticate()
 
-    def authenticate(self):
+    def get_token_path(self) -> str:
+        user_id = current_user_id.get()
+        channel_id = current_channel_id.get()
+        if user_id and channel_id:
+            os.makedirs("credentials", exist_ok=True)
+            return f"credentials/token_gmail_{channel_id}_{user_id}.pickle"
+        return self.token_path
+
+    def authenticate(self) -> Any:
         creds = None
-        if os.path.exists(self.token_path):
-            with open(self.token_path, "rb") as token:
-                creds = pickle.load(token)
+        token_path = self.get_token_path()
+
+        if os.path.exists(token_path):
+            with open(token_path, "rb") as token:
+                try:
+                    creds = pickle.load(token)
+                except Exception as e:
+                    logger.error(f"Error loading pickle {token_path}: {e}")
+
+        # Attempt to refresh if credentials exist and are expired
+        if creds and not creds.valid:
+            if creds.expired and creds.refresh_token:
+                try:
+                    creds.refresh(Request())
+                    with open(token_path, "wb") as token:
+                        pickle.dump(creds, token)
+                except Exception as e:
+                    logger.error(f"Error refreshing credentials: {e}")
+                    creds = None
 
         if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                if not os.path.exists(self.client_secret_path):
-                    raise FileNotFoundError(
-                        f"Client secret file not found at {self.client_secret_path}"
-                    )
+            user_id = current_user_id.get()
+            channel_id = current_channel_id.get()
+            if not user_id or not channel_id:
+                # Fallback to general token_path if it exists and is valid
+                if token_path != self.token_path and os.path.exists(self.token_path):
+                    with open(self.token_path, "rb") as token:
+                        creds = pickle.load(token)
+                    if creds and creds.valid:
+                        return build("gmail", "v1", credentials=creds)
 
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.client_secret_path, SCOPES
-                )
-                creds = flow.run_local_server(port=0)
+                raise ValueError("No user context available for web OAuth flow")
 
-            with open(self.token_path, "wb") as token:
-                pickle.dump(creds, token)
+            login_url = f"{config.redirect_uri_base}/auth/login?user_id={user_id}&channel_id={channel_id}&service=gmail"
+            raise GoogleAuthRequiredError(service_name="Gmail", login_url=login_url)
 
-        self.service = build("gmail", "v1", credentials=creds)
-        logger.info("Gmail service authenticated successfully.")
+        return build("gmail", "v1", credentials=creds)
 
     def get_service(self):
-        return self.service
+        def getter():
+            cache = _gmail_service_cache.get()
+            if cache is not None:
+                return cache
+            service_instance = self.authenticate()
+            _gmail_service_cache.set(service_instance)
+            return service_instance
+
+        return GoogleServiceProxy(getter)
