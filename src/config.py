@@ -52,10 +52,29 @@ class GeminiConfig(BaseSettings):
         embedding_model: Model name for embeddings (default: text-embedding-004)
     """
 
-    api_key: str = Field(..., alias="GEMINI_API_KEY")
+    api_key: str | None = Field(default=None, alias="GEMINI_API_KEY")
     chat_model: str = Field(default="gemini-2.0-flash-exp", alias="GEMINI_CHAT_MODEL")
     embedding_model: str = Field(
         default="models/text-embedding-004", alias="GEMINI_EMBEDDING_MODEL"
+    )
+
+    model_config = SettingsConfigDict(
+        env_file=str(PROJECT_ROOT / ".env"),
+        env_file_encoding="utf-8",
+        case_sensitive=False,
+        extra="ignore",
+    )
+
+
+class NvidiaConfig(BaseSettings):
+    """
+    NVIDIA AI API configuration.
+    """
+
+    api_key: str | None = Field(default=None, alias="NVIDIA_API_KEY")
+    chat_model: str = Field(default="z-ai/glm-5.1", alias="NVIDIA_CHAT_MODEL")
+    embedding_model: str = Field(
+        default="nvidia/embeddings-nv-embed-qa-4", alias="NVIDIA_EMBEDDING_MODEL"
     )
 
     model_config = SettingsConfigDict(
@@ -190,10 +209,21 @@ class AppConfig(BaseSettings):
     # Sub-configurations
     slack: SlackConfig = Field(default_factory=SlackConfig)
     gemini: GeminiConfig = Field(default_factory=GeminiConfig)
+    nvidia: NvidiaConfig = Field(default_factory=NvidiaConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     rag: RAGConfig = Field(default_factory=RAGConfig)
     mcp: MCPConfig = Field(default_factory=MCPConfig)
     whatsapp: WhatsAppConfig = Field(default_factory=WhatsAppConfig)
+
+    llm_provider: str | None = Field(default=None, alias="LLM_PROVIDER")
+
+    @property
+    def active_llm_provider(self) -> str:
+        if self.llm_provider:
+            return self.llm_provider.lower()
+        if self.nvidia.api_key and self.nvidia.api_key != "your-nvidia-api-key-here":
+            return "nvidia"
+        return "gemini"
 
     # Database
     database_path: str = Field(default="./data/assistant.db", alias="DATABASE_PATH")
@@ -254,9 +284,20 @@ def validate_config() -> tuple[bool, list[str]]:
     ):
         errors.append("SLACK_APP_TOKEN is not configured")
 
-    # Check Gemini configuration
-    if not config.gemini.api_key or config.gemini.api_key == "your-gemini-api-key-here":
-        errors.append("GEMINI_API_KEY is not configured")
+    # Check LLM configuration
+    provider = config.active_llm_provider
+    if provider == "nvidia":
+        if (
+            not config.nvidia.api_key
+            or config.nvidia.api_key == "your-nvidia-api-key-here"
+        ):
+            errors.append("NVIDIA_API_KEY is not configured for LLM_PROVIDER=nvidia")
+    else:
+        if (
+            not config.gemini.api_key
+            or config.gemini.api_key == "your-gemini-api-key-here"
+        ):
+            errors.append("GEMINI_API_KEY is not configured for LLM_PROVIDER=gemini")
 
     # Check mem0 configuration (if enabled)
     if config.memory.enabled:
@@ -295,7 +336,11 @@ if __name__ == "__main__":
     print("Configuration loaded successfully!")
     print(f"Environment: {config.environment}")
     print(f"Log Level: {config.log_level}")
-    print(f"Gemini Model: {config.gemini.chat_model}")
+    print(f"LLM Provider: {config.active_llm_provider}")
+    if config.active_llm_provider == "nvidia":
+        print(f"NVIDIA Model: {config.nvidia.chat_model}")
+    else:
+        print(f"Gemini Model: {config.gemini.chat_model}")
     print(f"RAG Enabled: {config.rag.enabled}")
     print(f"Memory Enabled: {config.memory.enabled}")
     print(f"MCP Enabled: {config.mcp.enabled}")

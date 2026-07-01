@@ -24,7 +24,6 @@ Architecture:
     Response
 """
 
-from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 
 from src.config import config
@@ -56,15 +55,27 @@ async def initialize_agent():
 
     logger.info("Initializing AI agent...")
 
-    # Create Gemini LLM
-    llm = ChatGoogleGenerativeAI(
-        model=config.gemini.chat_model,
-        google_api_key=config.gemini.api_key,
-        temperature=0.7,
-        convert_system_message_to_human=True,  # Gemini doesn't support system messages
-    )
+    # Create LLM based on provider
+    provider = config.active_llm_provider
+    if provider == "nvidia":
+        from langchain_nvidia_ai_endpoints import ChatNVIDIA
 
-    logger.info(f"✅ Gemini LLM initialized: {config.gemini.chat_model}")
+        llm = ChatNVIDIA(
+            model=config.nvidia.chat_model,
+            api_key=config.nvidia.api_key,
+            temperature=0.7,
+        )
+        logger.info(f"✅ NVIDIA LLM initialized: {config.nvidia.chat_model}")
+    else:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        llm = ChatGoogleGenerativeAI(
+            model=config.gemini.chat_model,
+            google_api_key=config.gemini.api_key,
+            temperature=0.7,
+            convert_system_message_to_human=True,  # Gemini doesn't support system messages
+        )
+        logger.info(f"✅ Gemini LLM initialized: {config.gemini.chat_model}")
 
     # Collect all tools
     tools = []
