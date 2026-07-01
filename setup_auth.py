@@ -4,26 +4,42 @@ import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 
-# Scopes required for the bot
-SCOPES = [
+# Scopes required for Gmail and Calendar separately
+GMAIL_SCOPES = [
     'https://www.googleapis.com/auth/gmail.readonly',
     'https://www.googleapis.com/auth/gmail.send',
     'https://www.googleapis.com/auth/gmail.modify',
+]
+
+CALENDAR_SCOPES = [
     'https://www.googleapis.com/auth/calendar.readonly',
     'https://www.googleapis.com/auth/calendar.events'
 ]
 
 CREDENTIALS_DIR = 'credentials'
-CLIENT_SECRET_FILE = os.path.join(CREDENTIALS_DIR, 'client_secret_for_gmail_and_calender.json')
+GMAIL_CLIENT_SECRET = os.path.join(CREDENTIALS_DIR, 'client_secret_gmail.json')
+CALENDAR_CLIENT_SECRET = os.path.join(CREDENTIALS_DIR, 'client_secret_calendar.json')
+COMBINED_CLIENT_SECRET = os.path.join(CREDENTIALS_DIR, 'client_secret_for_gmail_and_calender.json')
+
 GMAIL_TOKEN_FILE = os.path.join(CREDENTIALS_DIR, 'token_gmail.pickle')
 CALENDAR_TOKEN_FILE = os.path.join(CREDENTIALS_DIR, 'token_calendar.pickle')
 
-def authenticate_gmail():
-    print(f"\n--- Authenticating Gmail ---")
+def get_client_secret_file(service_name: str) -> str:
+    """Helper to determine the client secret path to use."""
+    if service_name == 'gmail':
+        if os.path.exists(GMAIL_CLIENT_SECRET):
+            return GMAIL_CLIENT_SECRET
+    elif service_name == 'calendar':
+        if os.path.exists(CALENDAR_CLIENT_SECRET):
+            return CALENDAR_CLIENT_SECRET
+    return COMBINED_CLIENT_SECRET
+
+def authenticate_service(name: str, secret_file: str, token_file: str, scopes: list) -> bool:
+    print(f"\n--- Authenticating {name} ---")
     creds = None
-    if os.path.exists(GMAIL_TOKEN_FILE):
-        print(f"Found existing Gmail token at {GMAIL_TOKEN_FILE}")
-        with open(GMAIL_TOKEN_FILE, 'rb') as token:
+    if os.path.exists(token_file):
+        print(f"Found existing {name} token at {token_file}")
+        with open(token_file, 'rb') as token:
             try:
                 creds = pickle.load(token)
             except Exception:
@@ -39,38 +55,31 @@ def authenticate_gmail():
                 creds = None
         
         if not creds:
-            print("Starting new authentication flow...")
-            if not os.path.exists(CLIENT_SECRET_FILE):
-                print(f"❌ Error: Client secret file not found at {CLIENT_SECRET_FILE}")
-                return
+            print(f"Starting new authentication flow for {name}...")
+            if not os.path.exists(secret_file):
+                print(f"❌ Error: Client secret file not found at {secret_file}")
+                return False
 
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
+            flow = InstalledAppFlow.from_client_secrets_file(secret_file, scopes)
             creds = flow.run_local_server(port=0)
             
             # Save the credentials for the next run
-            with open(GMAIL_TOKEN_FILE, 'wb') as token:
+            with open(token_file, 'wb') as token:
                 pickle.dump(creds, token)
-            print(f"✅ Saved new Gmail token to {GMAIL_TOKEN_FILE}")
+            print(f"✅ Saved new {name} token to {token_file}")
     else:
-        print("✅ Gmail token is valid.")
-
-    # We reuse the same token for calendar since scopes are combined in this script
-    # But usually they might be separate. 
-    # For simplicity, if we have one valid token with ALL scopes, we can copy it.
-    # However, your original system had separate pickles. Let's just do the flow again or copy if scopes match.
-    
-    # Actually, simpler: Let's just authenticate ONCE with ALL scopes and save to BOTH files.
-    # This simplifies things for the user.
-    
-    print(f"\n--- Updating Calendar Token ---")
-    with open(CALENDAR_TOKEN_FILE, 'wb') as token:
-        pickle.dump(creds, token)
-    print(f"✅ Saved Calendar token to {CALENDAR_TOKEN_FILE}")
+        print(f"✅ {name} token is valid.")
+    return True
 
 if __name__ == '__main__':
-    if not os.path.exists(CLIENT_SECRET_FILE):
-        print(f"❌ Critical Error: {CLIENT_SECRET_FILE} not found.")
-        print("Please ensure you copied the client_secret.json to the correct location.")
-    else:
-        authenticate_gmail()
+    gmail_secret = get_client_secret_file('gmail')
+    calendar_secret = get_client_secret_file('calendar')
+    
+    gmail_success = authenticate_service('Gmail', gmail_secret, GMAIL_TOKEN_FILE, GMAIL_SCOPES)
+    calendar_success = authenticate_service('Calendar', calendar_secret, CALENDAR_TOKEN_FILE, CALENDAR_SCOPES)
+    
+    if gmail_success and calendar_success:
         print("\n🎉 Authentication Complete! You can now restart the bot.")
+    else:
+        print("\n⚠️ Authentication incomplete. Please check error messages above.")
+

@@ -17,13 +17,22 @@ from src.mcp.core.permissions import PermissionManager, MCPScope
 def get_email_calendar_tools():
     """Get LangChain-compatible email and calendar tools"""
 
-    # Get credentials path from config or env
-    creds_path = os.getenv(
-        "GMAIL_CREDENTIALS_PATH",
-        "credentials/client_secret_for_gmail_and_calender.json",
-    )
+    # Resolve Gmail credentials path
+    gmail_creds_path = os.getenv("GMAIL_CREDENTIALS_PATH")
+    if not gmail_creds_path:
+        default_gmail = "credentials/client_secret_gmail.json"
+        combined = "credentials/client_secret_for_gmail_and_calender.json"
+        gmail_creds_path = default_gmail if os.path.exists(default_gmail) else combined
 
-    # Initialize permission manager (simplified - grant all for now)
+    # Resolve Calendar credentials path
+    calendar_creds_path = os.getenv("CALENDAR_CREDENTIALS_PATH")
+    if not calendar_creds_path:
+        default_calendar = "credentials/client_secret_calendar.json"
+        combined = "credentials/client_secret_for_gmail_and_calender.json"
+        calendar_creds_path = (
+            default_calendar if os.path.exists(default_calendar) else combined
+        )
+
     # Get token paths from config or env
     gmail_token_path = os.getenv("GMAIL_TOKEN_PATH", "credentials/token_gmail.pickle")
     calendar_token_path = os.getenv(
@@ -42,10 +51,10 @@ def get_email_calendar_tools():
 
     # Create email and calendar tool instances
     email_tools_instance = EmailTools(
-        permission_manager, creds_path, token_path=gmail_token_path
+        permission_manager, gmail_creds_path, token_path=gmail_token_path
     )
     calendar_tools_instance = CalendarTools(
-        permission_manager, creds_path, token_path=calendar_token_path
+        permission_manager, calendar_creds_path, token_path=calendar_token_path
     )
 
     # Get raw tool dictionaries
