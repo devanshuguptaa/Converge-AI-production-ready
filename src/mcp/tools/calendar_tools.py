@@ -27,9 +27,7 @@ class CalendarTools:
         from functools import wraps
         from ..integrations.gmail.service import GoogleAuthRequiredError
 
-        for tool_name, tool_def in tools.items():
-            original_run = tool_def["run"]
-
+        def make_wrapped_run(original_run):
             @wraps(original_run)
             def wrapped_run(*args, **kwargs):
                 try:
@@ -37,7 +35,10 @@ class CalendarTools:
                 except GoogleAuthRequiredError as e:
                     return f"🔒 Google authentication is required to use this tool. Please sign in here: {e.login_url}\nAfter connecting, please try your command again."
 
-            tool_def["run"] = wrapped_run
+            return wrapped_run
+
+        for tool_name, tool_def in tools.items():
+            tool_def["run"] = make_wrapped_run(tool_def["run"])
 
         return tools
 
