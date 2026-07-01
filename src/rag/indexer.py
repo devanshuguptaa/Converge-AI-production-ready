@@ -112,9 +112,21 @@ async def index_all_channels():
 
     try:
         # Get list of channels
-        response = await slack_client.conversations_list(
-            types="public_channel,private_channel", limit=1000
-        )
+        try:
+            response = await slack_client.conversations_list(
+                types="public_channel,private_channel", limit=1000
+            )
+        except Exception as e:
+            # If we lack permission for private channels (groups:read), fallback to public channels only
+            if hasattr(e, "response") and e.response.get("error") == "missing_scope":
+                logger.warning(
+                    "Missing 'groups:read' scope for private channels. Retrying with public channels only..."
+                )
+                response = await slack_client.conversations_list(
+                    types="public_channel", limit=1000
+                )
+            else:
+                raise
 
         channels = response.get("channels", [])
 
